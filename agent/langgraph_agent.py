@@ -128,13 +128,19 @@ builder.add_node("DetectIntent", RunnableLambda(detect_intent))
 builder.add_node("ExtractTime", RunnableLambda(extract_time))
 builder.add_node("CheckSlot", RunnableLambda(check_slot))
 builder.add_node("BookSlot", RunnableLambda(book_slot))
-builder.add_node("HandleUnknown", RunnableLambda(handle_unknown))  # ⬅️ new node added
+builder.add_node("HandleUnknown", RunnableLambda(handle_unknown))  # define node
+
+builder.add_conditional_edges("DetectIntent", {
+    "book": "ExtractTime",
+    "check": "ExtractTime",
+    "unknown": RunnableLambda(handle_unknown)  # use RunnableLambda here
+})
 
 builder.set_entry_point("DetectIntent")
 builder.add_conditional_edges("DetectIntent", {
     "book": "ExtractTime",
     "check": "ExtractTime",
-    "unknown": "HandleUnknown"  # ⬅️ fixed this line
+    "unknown": "HandleUnknown"  
 })
 
 builder.add_edge("ExtractTime", "CheckSlot")
