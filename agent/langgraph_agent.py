@@ -87,7 +87,7 @@ def book_slot(state: AgentState) -> AgentState:
     if state["confirmed"]:
         end = state["time_info"] + timedelta(minutes=30)
         link = book_event("Booked via AI", state["time_info"], end)
-        state["reply"] += f" 📅 Event booked! [Click here to view]({link})"
+        state["reply"] += f" 📅 Event booked! 👉 {link}"
     # Remove the duplicate error message
     return state
 
