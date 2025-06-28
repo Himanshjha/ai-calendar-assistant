@@ -32,8 +32,32 @@ class AgentState(TypedDict):
     reply: Optional[str]
 
 def detect_intent(state: AgentState) -> AgentState:
-    prompt = f"What is the user's intent in this message? '{state['user_input']}' (Reply with one word: book, check, or unknown)"
+    user_msg = state["user_input"].strip().lower()
+    greetings = ['hi', 'hello', 'hey', 'hii', 'good morning', 'good evening']
+
+    # Check if greeting-only (like "hi", "hello")
+    if user_msg in greetings:
+        state["intent"] = "unknown"
+        print("🙋 Detected Greeting Only — Marked as unknown")
+        return state
+
+    # If message is too short and doesn't contain intent words
+    if len(user_msg.split()) <= 3 and not any(word in user_msg for word in ["book", "free", "available", "schedule", "meeting", "call"]):
+        state["intent"] = "unknown"
+        print("⚠️ Too short or unclear message — Marked as unknown")
+        return state
+
+    # LLM prompt
+    prompt = (
+        f"The user said: '{state['user_input']}'. "
+        "Decide the user's intent. Respond with exactly one of: 'book', 'check', or 'unknown'. "
+        "Only reply 'book' if they clearly want to schedule or create an event. "
+        "Reply 'check' if they're asking about free time, availability, or schedule. "
+        "Reply 'unknown' if it's a greeting, vague message, or unclear."
+    )
+
     result = llm.invoke([HumanMessage(content=prompt)]).content.lower()
+    print("🧠 LLM Raw Output:", result)
 
     if "book" in result:
         state["intent"] = "book"
@@ -41,7 +65,11 @@ def detect_intent(state: AgentState) -> AgentState:
         state["intent"] = "check"
     else:
         state["intent"] = "unknown"
+
+    print("🔍 Detected Intent:", state["intent"])
     return state
+
+
 
 def extract_time(state: AgentState) -> AgentState:
     local_tz = timezone("Asia/Kolkata")
@@ -99,7 +127,14 @@ builder.add_node("CheckSlot", RunnableLambda(check_slot))
 builder.add_node("BookSlot", RunnableLambda(book_slot))
 
 builder.set_entry_point("DetectIntent")
-builder.add_edge("DetectIntent", "ExtractTime")
+builder.add_conditional_edges("DetectIntent", {
+
+
+    "book": "ExtractTime",
+    "check": "ExtractTime",
+    "unknown": END
+})
+
 builder.add_edge("ExtractTime", "CheckSlot")
 builder.add_edge("CheckSlot", "BookSlot")
 builder.add_edge("BookSlot", END)
@@ -115,4 +150,7 @@ def run_agent(user_input: str):
         "reply": None,
     }
     result = graph.invoke(state)
+    if result.get("intent") == "unknown":
+        return "❓ Sorry, I didn't understand. Try asking to book or check availability."
+
     return result["reply"]
