@@ -40,6 +40,13 @@ st.markdown(
             box-shadow: 0px 8px 20px rgba(0,0,0,0.2);
             margin-top: 2rem;
         }}
+        input[type="text"] {{
+            background-color: #2a2a40;
+            color: white;
+            border: 1px solid #4f46e5;
+            border-radius: 10px;
+            padding: 0.5rem;
+        }}
         .chat-output {{
             font-size: 1.1rem;
             background-color: #3b3b55;
@@ -65,6 +72,7 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
+
 
 # Header
 st.markdown(f"<h1 style='text-align: center; color:{text_color}'>📅 AI Calendar Assistant</h1>", unsafe_allow_html=True)
