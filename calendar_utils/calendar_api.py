@@ -4,6 +4,8 @@ from googleapiclient.discovery import build
 from datetime import datetime
 import os
 import pytz
+from dateutil.parser import parse
+
 # Scopes for accessing calendar events
 SCOPES = ['https://www.googleapis.com/auth/calendar']
 
@@ -26,6 +28,7 @@ def check_availability(start_dt, end_dt):
         start_dt = ist.localize(start_dt)
     if end_dt.tzinfo is None:
         end_dt = ist.localize(end_dt)
+
 
     # Convert to UTC and format as ISO string with Z
     start_utc = start_dt.astimezone(pytz.utc).replace(tzinfo=None).isoformat() + 'Z'
