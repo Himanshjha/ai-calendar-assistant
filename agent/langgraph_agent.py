@@ -20,8 +20,9 @@ google_api_key = os.getenv("GOOGLE_API_KEY")
 
 llm = ChatGoogleGenerativeAI(
     model="models/gemini-1.5-flash",
-    google_api_key="AIzaSyC1CE-mH6uMVOuhRS3Flr4Gwu6Ifxct1h4"
+    google_api_key=google_api_key  
 )
+
 
 class AgentState(TypedDict):
     user_input: str
