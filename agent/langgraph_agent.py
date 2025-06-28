@@ -128,25 +128,21 @@ builder.add_node("DetectIntent", RunnableLambda(detect_intent))
 builder.add_node("ExtractTime", RunnableLambda(extract_time))
 builder.add_node("CheckSlot", RunnableLambda(check_slot))
 builder.add_node("BookSlot", RunnableLambda(book_slot))
-builder.add_node("HandleUnknown", RunnableLambda(handle_unknown))  # define node
-
-builder.add_conditional_edges("DetectIntent", {
-    "book": "ExtractTime",
-    "check": "ExtractTime",
-    "unknown": RunnableLambda(handle_unknown)  # use RunnableLambda here
-})
+builder.add_node("HandleUnknown", RunnableLambda(handle_unknown))
 
 builder.set_entry_point("DetectIntent")
+
+# ✅ Use RunnableLambda instead of string for conditional edges
 builder.add_conditional_edges("DetectIntent", {
-    "book": "ExtractTime",
-    "check": "ExtractTime",
-    "unknown": "HandleUnknown"  
+    "book": RunnableLambda(extract_time),
+    "check": RunnableLambda(extract_time),
+    "unknown": RunnableLambda(handle_unknown)
 })
 
 builder.add_edge("ExtractTime", "CheckSlot")
 builder.add_edge("CheckSlot", "BookSlot")
 builder.add_edge("BookSlot", END)
-builder.add_edge("HandleUnknown", END)  # ⬅️ required to terminate unknown
+builder.add_edge("HandleUnknown", END)
 
 graph = builder.compile()
 
