@@ -18,9 +18,7 @@ text_color = "#f9fafb" if mode_toggle else "#1f2937"
 card_bg = "#2a2a40" if mode_toggle else "#ffffff"
 button_color = "#6366f1" if mode_toggle else "#2563eb"
 
-
-
-# Inject CSS
+# Inject Custom CSS
 st.markdown(
     f"""
     <style>
@@ -41,11 +39,12 @@ st.markdown(
             margin-top: 2rem;
         }}
         input[type="text"] {{
-            background-color: #2a2a40;
-            color: white;
+            background-color: {card_bg};
+            color: {text_color};
             border: 1px solid #4f46e5;
             border-radius: 10px;
-            padding: 0.5rem;
+            padding: 0.6rem;
+            width: 100%;
         }}
         .chat-output {{
             font-size: 1.1rem;
@@ -68,11 +67,18 @@ st.markdown(
         .submit-btn:hover {{
             background-color: #4338ca;
         }}
+        footer {{
+            text-align: center;
+            padding: 1rem 0;
+            font-size: 0.9rem;
+            color: {text_color};
+            opacity: 0.9;
+            margin-top: 2rem;
+        }}
     </style>
     """,
     unsafe_allow_html=True
 )
-
 
 # Header
 st.markdown(f"<h1 style='text-align: center; color:{text_color}'>📅 AI Calendar Assistant</h1>", unsafe_allow_html=True)
@@ -98,3 +104,9 @@ if st.button("🚀 Ask", key="ask", help="Submit your message"):
             st.error(f"🚨 Connection error: {e}")
 
 st.markdown("</div>", unsafe_allow_html=True)
+
+# Footer
+st.markdown(
+    "<footer>Developed with ❤️ for <strong>TailorTalk</strong> by <strong>Himanshu Jha</strong></footer>",
+    unsafe_allow_html=True
+)
