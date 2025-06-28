@@ -95,7 +95,7 @@ query = st.text_input("💬 Your Message:")
 if st.button("🚀 Ask", key="ask", help="Submit your message"):
     with st.spinner("🤖 Thinking..."):
         try:
-            res = requests.post("http://127.0.0.1:8000/ask", json={"query": query})
+            res = requests.post("https://fastapi-calendar-backend.onrender.com/ask", json={"query": query})
             if res.status_code == 200:
                 st.markdown(f"<div class='chat-output'>{res.json()['response']}</div>", unsafe_allow_html=True)
             else:
