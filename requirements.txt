@@ -1,0 +1,15 @@
+### ✅ `requirements.txt`
+
+fastapi
+uvicorn
+langgraph
+langchain
+langchain-google-genai
+google-api-python-client
+google-auth
+google-auth-oauthlib
+python-dotenv
+dateparser
+pytz
+streamlit
+
