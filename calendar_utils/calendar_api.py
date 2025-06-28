@@ -27,9 +27,10 @@ def check_availability(start_dt, end_dt):
     if end_dt.tzinfo is None:
         end_dt = ist.localize(end_dt)
 
-    # Convert to UTC for API query
-    start_utc = start_dt.astimezone(pytz.utc).isoformat(timespec='seconds') + 'Z'
-    end_utc = end_dt.astimezone(pytz.utc).isoformat(timespec='seconds') + 'Z'
+    # Convert to UTC and format as ISO string with Z
+    start_utc = start_dt.astimezone(pytz.utc).replace(tzinfo=None).isoformat() + 'Z'
+    end_utc = end_dt.astimezone(pytz.utc).replace(tzinfo=None).isoformat() + 'Z'
+
 
     print("📤 Sending to Google Calendar API:")
     print("Start UTC:", start_utc)
