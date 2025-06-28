@@ -13,16 +13,13 @@ from pytz import timezone
 from dateparser.search import search_dates
 from calendar_utils.calendar_api import check_availability, book_event
 import streamlit as st
+
 google_api_key = os.getenv("GOOGLE_API_KEY")
-
-
-
 
 llm = ChatGoogleGenerativeAI(
     model="models/gemini-1.5-flash",
-    google_api_key=google_api_key  
+    google_api_key=google_api_key
 )
-
 
 class AgentState(TypedDict):
     user_input: str
@@ -35,19 +32,16 @@ def detect_intent(state: AgentState) -> AgentState:
     user_msg = state["user_input"].strip().lower()
     greetings = ['hi', 'hello', 'hey', 'hii', 'good morning', 'good evening']
 
-    # Check if greeting-only (like "hi", "hello")
     if user_msg in greetings:
         state["intent"] = "unknown"
         print("🙋 Detected Greeting Only — Marked as unknown")
         return state
 
-    # If message is too short and doesn't contain intent words
     if len(user_msg.split()) <= 3 and not any(word in user_msg for word in ["book", "free", "available", "schedule", "meeting", "call"]):
         state["intent"] = "unknown"
         print("⚠️ Too short or unclear message — Marked as unknown")
         return state
 
-    # LLM prompt
     prompt = (
         f"The user said: '{state['user_input']}'. "
         "Decide the user's intent. Respond with exactly one of: 'book', 'check', or 'unknown'. "
@@ -69,8 +63,6 @@ def detect_intent(state: AgentState) -> AgentState:
     print("🔍 Detected Intent:", state["intent"])
     return state
 
-
-
 def extract_time(state: AgentState) -> AgentState:
     local_tz = timezone("Asia/Kolkata")
     now = datetime.now(local_tz)
@@ -89,19 +81,17 @@ def extract_time(state: AgentState) -> AgentState:
         parsed = results[0][1]
         ist_time = parsed.astimezone(local_tz).replace(tzinfo=None)
 
-        # 🕒 Smart adjustment
         text = results[0][0].lower()
         if "afternoon" in text and ist_time.hour < 12:
-            ist_time = ist_time.replace(hour=15, minute=0)  # Set to 3 PM
+            ist_time = ist_time.replace(hour=15, minute=0)
         elif "evening" in text and ist_time.hour < 17:
-            ist_time = ist_time.replace(hour=18, minute=0)  # 6 PM
+            ist_time = ist_time.replace(hour=18, minute=0)
         elif "morning" in text and ist_time.hour < 8:
-            ist_time = ist_time.replace(hour=10, minute=0)  # 10 AM
+            ist_time = ist_time.replace(hour=10, minute=0)
 
         print("🕓 Adjusted smart time:", ist_time)
         state["time_info"] = ist_time
     else:
-        # Fallback: tomorrow same time
         state["time_info"] = now.replace(tzinfo=None) + timedelta(days=1)
 
     return state
@@ -125,28 +115,32 @@ def book_slot(state: AgentState) -> AgentState:
         end = state["time_info"] + timedelta(minutes=30)
         link = book_event("Booked via AI", state["time_info"], end)
         state["reply"] += f" 📅 Event booked! 👉 {link}"
-    # Remove the duplicate error message
     return state
 
+def handle_unknown(state: AgentState) -> AgentState:
+    print("⚠️ Unknown intent detected.")
+    state["reply"] = "❓ Sorry, I didn't understand. Try asking to *book* or *check* availability."
+    return state
 
+# Build the state graph
 builder = StateGraph(AgentState)
 builder.add_node("DetectIntent", RunnableLambda(detect_intent))
 builder.add_node("ExtractTime", RunnableLambda(extract_time))
 builder.add_node("CheckSlot", RunnableLambda(check_slot))
 builder.add_node("BookSlot", RunnableLambda(book_slot))
+builder.add_node("HandleUnknown", RunnableLambda(handle_unknown))  # ⬅️ new node added
 
 builder.set_entry_point("DetectIntent")
 builder.add_conditional_edges("DetectIntent", {
-
-
     "book": "ExtractTime",
     "check": "ExtractTime",
-    "unknown": END
+    "unknown": "HandleUnknown"  # ⬅️ fixed this line
 })
 
 builder.add_edge("ExtractTime", "CheckSlot")
 builder.add_edge("CheckSlot", "BookSlot")
 builder.add_edge("BookSlot", END)
+builder.add_edge("HandleUnknown", END)  # ⬅️ required to terminate unknown
 
 graph = builder.compile()
 
@@ -159,7 +153,4 @@ def run_agent(user_input: str):
         "reply": None,
     }
     result = graph.invoke(state)
-    if result.get("intent") == "unknown":
-        return "❓ Sorry, I didn't understand. Try asking to book or check availability."
-
     return result["reply"]
