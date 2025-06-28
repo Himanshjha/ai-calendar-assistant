@@ -27,15 +27,15 @@ def check_availability(start_dt, end_dt):
     if end_dt.tzinfo is None:
         end_dt = ist.localize(end_dt)
 
-    # Convert to UTC
-    start_utc = start_dt.astimezone(pytz.utc).isoformat(timespec='seconds')
-    end_utc = end_dt.astimezone(pytz.utc).isoformat(timespec='seconds')
+    # Convert to UTC for API query
+    start_utc = start_dt.astimezone(pytz.utc).isoformat(timespec='seconds') + 'Z'
+    end_utc = end_dt.astimezone(pytz.utc).isoformat(timespec='seconds') + 'Z'
 
     print("📤 Sending to Google Calendar API:")
     print("Start UTC:", start_utc)
     print("End UTC:", end_utc)
 
-    # Call the Calendar API
+    # Fetch events between start and end
     events_result = service.events().list(
         calendarId='primary',
         timeMin=start_utc,
@@ -44,29 +44,32 @@ def check_availability(start_dt, end_dt):
         orderBy='startTime'
     ).execute()
 
-    all_events = events_result.get('items', [])
-    print("📋 Raw events fetched:")
+    events = events_result.get('items', [])
 
-    for event in all_events:
+    print(f"📋 {len(events)} events fetched")
+    for event in events:
         print("🔸", event.get("summary", "[No Title]"))
         print("   Start:", event.get("start"))
         print("   End  :", event.get("end"))
 
-    # Check for any overlapping event
-    for event in all_events:
+    # Check overlap manually
+    for event in events:
         start_str = event.get('start', {}).get('dateTime')
         end_str = event.get('end', {}).get('dateTime')
         if start_str and end_str:
             try:
                 existing_start = parse(start_str)
                 existing_end = parse(end_str)
-                # Check for overlap
-                if existing_start < end_dt and existing_end > start_dt:
-                    return [event]  # busy
-            except Exception as e:
-                print("⚠️ Error parsing event times:", e)
 
-    return []  # No overlaps => free
+                # Overlap condition: Start < End and End > Start
+                if existing_start < end_dt and existing_end > start_dt:
+                    print("⚠️ Overlapping event found:", event.get("summary", "[No Title]"))
+                    return [event]
+            except Exception as e:
+                print("⚠️ Error parsing event time:", e)
+
+    return []  # No conflicts found
+
 
 
 def book_event(summary, start_time, end_time):
