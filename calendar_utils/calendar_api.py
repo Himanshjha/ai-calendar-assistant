@@ -75,11 +75,29 @@ def check_availability(start_dt, end_dt):
 def book_event(summary, start_time, end_time):
     service = get_calendar_service()
 
+    ist = pytz.timezone("Asia/Kolkata")
+
+    # Ensure timezone-aware datetimes
+    if start_time.tzinfo is None:
+        start_time = ist.localize(start_time)
+    if end_time.tzinfo is None:
+        end_time = ist.localize(end_time)
+
     event = {
         'summary': summary,
-        'start': {'dateTime': start_time.isoformat(), 'timeZone': 'Asia/Kolkata'},
-        'end': {'dateTime': end_time.isoformat(), 'timeZone': 'Asia/Kolkata'},
+        'start': {
+            'dateTime': start_time.isoformat(),
+            'timeZone': 'Asia/Kolkata',
+        },
+        'end': {
+            'dateTime': end_time.isoformat(),
+            'timeZone': 'Asia/Kolkata',
+        },
+        'reminders': {
+            'useDefault': True,
+        },
     }
 
     created_event = service.events().insert(calendarId='primary', body=event).execute()
+    print("📅 Event successfully booked:", created_event.get("htmlLink"))
     return created_event.get('htmlLink')
