@@ -12,3 +12,4 @@ calendar_utils/credentials.json
 # VSCode and system files
 .vscode/
 .DS_Store
+secrets/tailortalk-agent-key.json
