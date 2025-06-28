@@ -86,17 +86,26 @@ def extract_time(state: AgentState) -> AgentState:
     )
 
     if results:
-        # Grab the first matched datetime
         parsed = results[0][1]
-        print("🕓 Matched time:", parsed)
         ist_time = parsed.astimezone(local_tz).replace(tzinfo=None)
+
+        # 🕒 Smart adjustment
+        text = results[0][0].lower()
+        if "afternoon" in text and ist_time.hour < 12:
+            ist_time = ist_time.replace(hour=15, minute=0)  # Set to 3 PM
+        elif "evening" in text and ist_time.hour < 17:
+            ist_time = ist_time.replace(hour=18, minute=0)  # 6 PM
+        elif "morning" in text and ist_time.hour < 8:
+            ist_time = ist_time.replace(hour=10, minute=0)  # 10 AM
+
+        print("🕓 Adjusted smart time:", ist_time)
         state["time_info"] = ist_time
     else:
         # Fallback: tomorrow same time
-        print("⚠️ No time matched, using fallback.")
         state["time_info"] = now.replace(tzinfo=None) + timedelta(days=1)
 
     return state
+
 def check_slot(state: AgentState) -> AgentState:
     start = state["time_info"]
     end = start + timedelta(minutes=30)
