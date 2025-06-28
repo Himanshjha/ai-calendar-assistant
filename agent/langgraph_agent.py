@@ -13,7 +13,8 @@ from pytz import timezone
 from dateparser.search import search_dates
 from calendar_utils.calendar_api import check_availability, book_event
 import streamlit as st
-google_api_key = st.secrets["AIzaSyC1CE-mH6uMVOuhRS3Flr4Gwu6Ifxct1h4"]
+google_api_key = os.getenv("AIzaSyC1CE-mH6uMVOuhRS3Flr4Gwu6Ifxct1h4")
+
 
 
 llm = ChatGoogleGenerativeAI(
