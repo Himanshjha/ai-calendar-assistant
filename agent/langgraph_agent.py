@@ -50,18 +50,26 @@ def detect_intent(state: AgentState) -> AgentState:
         "Reply 'unknown' if it's a greeting, vague message, or unclear."
     )
 
-    result = llm.invoke([HumanMessage(content=prompt)]).content.lower()
-    print("🧠 LLM Raw Output:", result)
+    try:
+        result = llm.invoke([HumanMessage(content=prompt)]).content.lower()
+        print("🧠 LLM Raw Output:", result)
 
-    if "book" in result:
-        state["intent"] = "book"
-    elif "check" in result or "free" in result or "available" in result:
-        state["intent"] = "check"
-    else:
+        if "book" in result:
+            state["intent"] = "book"
+        elif "check" in result or "free" in result or "available" in result:
+            state["intent"] = "check"
+        else:
+            state["intent"] = "unknown"
+
+        print("🔍 Detected Intent:", state["intent"])
+        return state
+
+    except Exception as e:
+        print("🚨 LLM Quota Error or Other Exception:", e)
         state["intent"] = "unknown"
+        state["reply"] = "😵 Sorry, I'm temporarily down due to usage limits. Try again later."
+        return state
 
-    print("🔍 Detected Intent:", state["intent"])
-    return state
 
 def extract_time(state: AgentState) -> AgentState:
     local_tz = timezone("Asia/Kolkata")
