@@ -2,14 +2,14 @@ import json
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from datetime import datetime
-import streamlit as st
-
+import os
 # Scopes for accessing calendar events
 SCOPES = ['https://www.googleapis.com/auth/calendar']
 
 def get_calendar_service():
     # Load service account from Streamlit secrets
-    service_account_info = json.loads(st.secrets["GCP_SERVICE_ACCOUNT"])
+
+    service_account_info = json.loads(os.environ["GCP_SERVICE_ACCOUNT"])
     credentials = service_account.Credentials.from_service_account_info(
         service_account_info, scopes=SCOPES
     )
