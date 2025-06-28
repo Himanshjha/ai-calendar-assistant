@@ -1,0 +1,14 @@
+# Python cache
+__pycache__/
+*.pyc
+
+# Google Calendar secrets
+calendar_utils/token.pickle
+calendar_utils/credentials.json
+
+# Streamlit secrets (optional)
+.streamlit/secrets.toml
+
+# VSCode and system files
+.vscode/
+.DS_Store
