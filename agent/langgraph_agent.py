@@ -66,10 +66,11 @@ def detect_intent(state: AgentState) -> AgentState:
 
     except Exception as e:
         print("🚨 LLM Quota Error or Other Exception:", e)
-        state["intent"] = "unknown"
-        state["reply"] = "😵 Sorry, I'm temporarily down due to usage limits. Try again later."
+        state["intent"] = "quota_error"
+        state["reply"] = "😵 Gemini quota exceeded. Please try again later."
         return state
 
+    
 
 def extract_time(state: AgentState) -> AgentState:
     local_tz = timezone("Asia/Kolkata")
@@ -127,7 +128,8 @@ def book_slot(state: AgentState) -> AgentState:
 
 def handle_unknown(state: AgentState) -> AgentState:
     print("⚠️ Unknown intent detected.")
-    state["reply"] = "❓ Sorry, I didn't understand. Try asking to *book* or *check* availability."
+    if not state.get("reply"):
+        state["reply"] = "❓ Sorry, I didn't understand. Try asking to *book* or *check* availability."
     return state
 
 # Build the state graph
@@ -138,19 +140,25 @@ builder.add_node("CheckSlot", RunnableLambda(check_slot))
 builder.add_node("BookSlot", RunnableLambda(book_slot))
 builder.add_node("HandleUnknown", RunnableLambda(handle_unknown))
 
+# Add nodes
 builder.set_entry_point("DetectIntent")
+builder.add_node("QuotaError", RunnableLambda(lambda s: s))  # Quota fallback handler
 
-# ✅ Use RunnableLambda instead of string for conditional edges
+# Conditional edges from DetectIntent
 builder.add_conditional_edges("DetectIntent", {
     "book": RunnableLambda(extract_time),
     "check": RunnableLambda(extract_time),
-    "unknown": RunnableLambda(handle_unknown)
+    "unknown": RunnableLambda(handle_unknown),
+    "quota_error": "QuotaError" 
 })
 
+# Normal flow
 builder.add_edge("ExtractTime", "CheckSlot")
 builder.add_edge("CheckSlot", "BookSlot")
 builder.add_edge("BookSlot", END)
 builder.add_edge("HandleUnknown", END)
+builder.add_edge("QuotaError", END)
+
 
 graph = builder.compile()
 
@@ -163,4 +171,7 @@ def run_agent(user_input: str):
         "reply": None,
     }
     result = graph.invoke(state)
-    return result["reply"]
+    print("🟢 Final Agent State:", result)  # DEBUG
+    return result["reply"] or "⚠️ No response generated. Please try again."
+
+
