@@ -142,22 +142,27 @@ builder.add_node("ExtractTime", RunnableLambda(extract_time))
 builder.add_node("CheckSlot", RunnableLambda(check_slot))
 builder.add_node("BookSlot", RunnableLambda(book_slot))
 builder.add_node("HandleUnknown", RunnableLambda(handle_unknown))
-builder.add_node("QuotaError", RunnableLambda(lambda s: s))  # No-op fallback
+builder.add_node("QuotaError", RunnableLambda(lambda s: s))
 
-# ✅ Conditional edges (use RunnableLambda)
+# Edges
+builder.set_entry_point("DetectIntent")
+
+# Conditional edges from DetectIntent
 builder.add_conditional_edges("DetectIntent", {
     "book": RunnableLambda(extract_time),
     "check": RunnableLambda(extract_time),
     "unknown": RunnableLambda(handle_unknown),
-    "quota_error": RunnableLambda(lambda s: s)
+    "quota_error": RunnableLambda(lambda s: s),
 })
 
-# Edges
-builder.add_edge("ExtractTime", "CheckSlot")
-builder.add_edge("CheckSlot", "BookSlot")
+# Now define the correct flow based on intent
+builder.add_edge("ExtractTime", "CheckSlot")     # ✅ common for both 'book' and 'check'
+builder.add_edge("CheckSlot", "BookSlot")        # ✅ only 'book' continues to booking
+builder.add_edge("CheckSlot", END)               # ✅ but 'check' intent should end here
 builder.add_edge("BookSlot", END)
 builder.add_edge("HandleUnknown", END)
 builder.add_edge("QuotaError", END)
+
 
 # Compile
 graph = builder.compile()
