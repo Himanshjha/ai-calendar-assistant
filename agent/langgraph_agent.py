@@ -147,7 +147,7 @@ builder.add_conditional_edges("DetectIntent", {
     "book": RunnableLambda(extract_time),
     "check": RunnableLambda(extract_time),
     "unknown": RunnableLambda(handle_unknown),
-    "quota_error": "QuotaError"
+    "quota_error": RunnableLambda(lambda s: s)
 })
 
 # Edge transitions
