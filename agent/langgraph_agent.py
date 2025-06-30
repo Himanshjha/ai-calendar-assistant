@@ -70,8 +70,6 @@ def detect_intent(state: AgentState) -> AgentState:
         state["reply"] = "😵 Gemini quota exceeded. Please try again later."
         return state
 
-    
-
 def extract_time(state: AgentState) -> AgentState:
     local_tz = timezone("Asia/Kolkata")
     now = datetime.now(local_tz)
@@ -134,32 +132,32 @@ def handle_unknown(state: AgentState) -> AgentState:
 
 # Build the state graph
 builder = StateGraph(AgentState)
+builder.set_entry_point("DetectIntent")
+
+# Nodes
 builder.add_node("DetectIntent", RunnableLambda(detect_intent))
 builder.add_node("ExtractTime", RunnableLambda(extract_time))
 builder.add_node("CheckSlot", RunnableLambda(check_slot))
 builder.add_node("BookSlot", RunnableLambda(book_slot))
 builder.add_node("HandleUnknown", RunnableLambda(handle_unknown))
+builder.add_node("QuotaError", RunnableLambda(lambda s: s))  # No-op node for quota error
 
-# Add nodes
-builder.set_entry_point("DetectIntent")
-builder.add_node("QuotaError", RunnableLambda(lambda s: s))  # Quota fallback handler
-
-# Conditional edges from DetectIntent
+# Conditional transitions
 builder.add_conditional_edges("DetectIntent", {
     "book": RunnableLambda(extract_time),
     "check": RunnableLambda(extract_time),
     "unknown": RunnableLambda(handle_unknown),
-    "quota_error": "QuotaError" 
+    "quota_error": "QuotaError"
 })
 
-# Normal flow
+# Edge transitions
 builder.add_edge("ExtractTime", "CheckSlot")
 builder.add_edge("CheckSlot", "BookSlot")
 builder.add_edge("BookSlot", END)
 builder.add_edge("HandleUnknown", END)
 builder.add_edge("QuotaError", END)
 
-
+# Compile
 graph = builder.compile()
 
 def run_agent(user_input: str):
@@ -171,7 +169,5 @@ def run_agent(user_input: str):
         "reply": None,
     }
     result = graph.invoke(state)
-    print("🟢 Final Agent State:", result)  # DEBUG
+    print("🟢 Final Agent State:", result)
     return result["reply"] or "⚠️ No response generated. Please try again."
-
-
