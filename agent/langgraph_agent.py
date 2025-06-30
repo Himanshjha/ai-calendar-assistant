@@ -133,7 +133,7 @@ def handle_unknown(state: AgentState) -> AgentState:
 # Build the state graph
 builder = StateGraph(AgentState)
 
-# Set the entry point
+# Set entry point
 builder.set_entry_point("DetectIntent")
 
 # Nodes
@@ -142,18 +142,17 @@ builder.add_node("ExtractTime", RunnableLambda(extract_time))
 builder.add_node("CheckSlot", RunnableLambda(check_slot))
 builder.add_node("BookSlot", RunnableLambda(book_slot))
 builder.add_node("HandleUnknown", RunnableLambda(handle_unknown))
-builder.add_node("QuotaError", RunnableLambda(lambda s: s))  # No-op node for quota error
+builder.add_node("QuotaError", RunnableLambda(lambda s: s))  # No-op fallback
 
-# Conditional transitions (✅ CORRECTED)
+# ✅ Conditional edges (use RunnableLambda)
 builder.add_conditional_edges("DetectIntent", {
-    "book": "ExtractTime",
-    "check": "ExtractTime",
-    "unknown": "HandleUnknown",
-    "quota_error": "QuotaError"
+    "book": RunnableLambda(extract_time),
+    "check": RunnableLambda(extract_time),
+    "unknown": RunnableLambda(handle_unknown),
+    "quota_error": RunnableLambda(lambda s: s)
 })
 
-
-# Edge transitions
+# Edges
 builder.add_edge("ExtractTime", "CheckSlot")
 builder.add_edge("CheckSlot", "BookSlot")
 builder.add_edge("BookSlot", END)
