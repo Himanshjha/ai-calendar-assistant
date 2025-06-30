@@ -179,4 +179,15 @@ def run_agent(user_input: str):
     }
     result = graph.invoke(state)
     print("🟢 Final Agent State:", result)
-    return result["reply"] or "⚠️ No response generated. Please try again."
+
+    # ⛑️ Handle missing reply safely
+    if not result["reply"]:
+        if result.get("intent") == "check" and result.get("confirmed") is not None:
+            if result["confirmed"]:
+                result["reply"] = f"✅ You're free at {result['time_info'].strftime('%I:%M %p on %A')}!"
+            else:
+                result["reply"] = f"❌ You're busy at {result['time_info'].strftime('%I:%M %p on %A')}."
+        else:
+            result["reply"] = "⚠️ No response generated. Please try again."
+
+    return result["reply"]
