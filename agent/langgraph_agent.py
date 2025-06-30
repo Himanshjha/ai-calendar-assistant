@@ -155,11 +155,9 @@ builder.add_conditional_edges("DetectIntent", {
 # Shared time extraction
 builder.add_edge("ExtractTime", "CheckSlot")
 
-# Add conditional branching from CheckSlot
-# You must differentiate whether to book or just check
 builder.add_conditional_edges("CheckSlot", {
     "book": RunnableLambda(book_slot),
-    "check": END  
+    "check": RunnableLambda(lambda s: s)  
 })
 
 builder.add_edge("BookSlot", END)
