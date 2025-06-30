@@ -144,10 +144,7 @@ builder.add_node("BookSlot", RunnableLambda(book_slot))
 builder.add_node("HandleUnknown", RunnableLambda(handle_unknown))
 builder.add_node("QuotaError", RunnableLambda(lambda s: s))
 
-# Edges
-builder.set_entry_point("DetectIntent")
-
-# Conditional edges from DetectIntent
+# Intent-based branching
 builder.add_conditional_edges("DetectIntent", {
     "book": RunnableLambda(extract_time),
     "check": RunnableLambda(extract_time),
@@ -155,13 +152,20 @@ builder.add_conditional_edges("DetectIntent", {
     "quota_error": RunnableLambda(lambda s: s),
 })
 
-# Now define the correct flow based on intent
-builder.add_edge("ExtractTime", "CheckSlot")     # ✅ common for both 'book' and 'check'
-builder.add_edge("CheckSlot", "BookSlot")        # ✅ only 'book' continues to booking
-builder.add_edge("CheckSlot", END)               # ✅ but 'check' intent should end here
+# Shared time extraction
+builder.add_edge("ExtractTime", "CheckSlot")
+
+# Add conditional branching from CheckSlot
+# You must differentiate whether to book or just check
+builder.add_conditional_edges("CheckSlot", {
+    "book": RunnableLambda(book_slot),
+    "check": END  
+})
+
 builder.add_edge("BookSlot", END)
 builder.add_edge("HandleUnknown", END)
 builder.add_edge("QuotaError", END)
+
 
 
 # Compile
