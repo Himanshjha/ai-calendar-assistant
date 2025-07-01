@@ -99,7 +99,7 @@ def extract_time(state: AgentState) -> AgentState:
                 ist_time = ist_time.replace(hour=10, minute=0)
 
             print("🕓 Adjusted smart time:", ist_time)
-            state["time_info"] = ist_time
+            state.update({"time_info": ist_time})
         else:
             # ❗Fallback: tomorrow 3PM
             fallback_time = (now + timedelta(days=1)).replace(hour=15, minute=0, second=0, microsecond=0)
@@ -113,8 +113,6 @@ def extract_time(state: AgentState) -> AgentState:
         return state
 
     return state
-
-
 
 def check_slot(state: AgentState) -> AgentState:
     if not state["time_info"]:
