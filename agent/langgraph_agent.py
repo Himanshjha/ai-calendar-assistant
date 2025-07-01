@@ -114,7 +114,7 @@ def extract_time(state: AgentState) -> AgentState:
 
     return state
 
-def check_slot(state: AgentState) -> str:
+def check_slot(state: AgentState) -> AgentState:
     if not state["time_info"]:
         print("⚠️ Missing time_info. Skipping check.")
         state["reply"] = "❗ I couldn't understand the time. Please rephrase your query."
@@ -131,7 +131,7 @@ def check_slot(state: AgentState) -> str:
         state["confirmed"] = True
         state["reply"] = f"✅ You're free at {start.strftime('%I:%M %p on %A')}!"
 
-    return state["intent"] or "unknown"
+    return state
 
 def book_slot(state: AgentState) -> AgentState:
     if state["confirmed"]:
