@@ -174,7 +174,7 @@ builder.add_edge("ExtractTime", "CheckSlotBranch")
 # Branching after check_slot()
 builder.add_conditional_edges("CheckSlotBranch", {
     "book": RunnableLambda(book_slot),
-    "check": builder.goto(END),
+    "check": RunnableLambda(lambda s: s),
     "unknown": RunnableLambda(handle_unknown),
 })
 
@@ -183,6 +183,7 @@ builder.add_conditional_edges("CheckSlotBranch", {
 builder.add_edge("BookSlot", END)
 builder.add_edge("HandleUnknown", END)
 builder.add_edge("QuotaError", END)
+builder.add_edge("CheckSlot", END)
 
 # Compile graph
 graph = builder.compile()
