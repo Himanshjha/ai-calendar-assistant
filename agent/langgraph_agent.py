@@ -99,9 +99,8 @@ def extract_time(state: AgentState) -> AgentState:
                 ist_time = ist_time.replace(hour=10, minute=0)
 
             print("🕓 Adjusted smart time:", ist_time)
-            state.update({"time_info": ist_time})
+            state["time_info"] = ist_time
         else:
-            # ❗Fallback: tomorrow 3PM
             fallback_time = (now + timedelta(days=1)).replace(hour=15, minute=0, second=0, microsecond=0)
             print("⚠️ Could not parse time. Using fallback:", fallback_time)
             state["time_info"] = fallback_time
@@ -114,11 +113,11 @@ def extract_time(state: AgentState) -> AgentState:
 
     return state
 
-def check_slot(state: AgentState) -> AgentState:
+def check_slot(state: AgentState) -> str:
     if not state["time_info"]:
         print("⚠️ Missing time_info. Skipping check.")
         state["reply"] = "❗ I couldn't understand the time. Please rephrase your query."
-        return state
+        return "unknown"
 
     start = state["time_info"]
     end = start + timedelta(minutes=30)
@@ -127,12 +126,12 @@ def check_slot(state: AgentState) -> AgentState:
 
     if events:
         state["confirmed"] = False
-        state["reply"] = f"❌ You're busy at {start.strftime('%I:%M %p on %A')}. Cannot book — you're busy at that time."
+        state["reply"] = f"❌ You're busy at {start.strftime('%I:%M %p on %A')}."
     else:
         state["confirmed"] = True
         state["reply"] = f"✅ You're free at {start.strftime('%I:%M %p on %A')}!"
-    return state
 
+    return state["intent"] or "unknown"
 
 def book_slot(state: AgentState) -> AgentState:
     if state["confirmed"]:
@@ -150,18 +149,18 @@ def handle_unknown(state: AgentState) -> AgentState:
 # Build the state graph
 builder = StateGraph(AgentState)
 
-# Set entry point
+# Entry
 builder.set_entry_point("DetectIntent")
 
 # Nodes
 builder.add_node("DetectIntent", RunnableLambda(detect_intent))
 builder.add_node("ExtractTime", RunnableLambda(extract_time))
-builder.add_node("CheckSlot", RunnableLambda(check_slot))
+builder.add_node("CheckSlotBranch", RunnableLambda(check_slot))
 builder.add_node("BookSlot", RunnableLambda(book_slot))
 builder.add_node("HandleUnknown", RunnableLambda(handle_unknown))
 builder.add_node("QuotaError", RunnableLambda(lambda s: s))
 
-# Intent-based branching
+# Intent-based flow
 builder.add_conditional_edges("DetectIntent", {
     "book": RunnableLambda(extract_time),
     "check": RunnableLambda(extract_time),
@@ -169,22 +168,22 @@ builder.add_conditional_edges("DetectIntent", {
     "quota_error": RunnableLambda(lambda s: s),
 })
 
-# Shared time extraction
-builder.add_edge("ExtractTime", "CheckSlot")
+# From ExtractTime → Branching CheckSlot logic
+builder.add_edge("ExtractTime", "CheckSlotBranch")
 
-builder.add_conditional_edges("CheckSlot", {
+# Branching after check_slot()
+builder.add_conditional_edges("CheckSlotBranch", {
     "book": RunnableLambda(book_slot),
-    "check": RunnableLambda(lambda s: s),
+    "check": END,
     "unknown": RunnableLambda(handle_unknown),
 })
 
+# End nodes
 builder.add_edge("BookSlot", END)
 builder.add_edge("HandleUnknown", END)
 builder.add_edge("QuotaError", END)
 
-
-
-# Compile
+# Compile graph
 graph = builder.compile()
 
 def run_agent(user_input: str):
@@ -198,7 +197,6 @@ def run_agent(user_input: str):
     result = graph.invoke(state)
     print("🟢 Final Agent State:", result)
 
-    # ⛑️ Handle missing reply safely
     if not result["reply"]:
         if result.get("intent") == "check" and result.get("confirmed") is not None:
             if result["confirmed"]:
