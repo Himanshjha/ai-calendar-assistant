@@ -174,9 +174,10 @@ builder.add_edge("ExtractTime", "CheckSlotBranch")
 # Branching after check_slot()
 builder.add_conditional_edges("CheckSlotBranch", {
     "book": RunnableLambda(book_slot),
-    "check": END,
+    "check": builder.goto(END),
     "unknown": RunnableLambda(handle_unknown),
 })
+
 
 # End nodes
 builder.add_edge("BookSlot", END)
