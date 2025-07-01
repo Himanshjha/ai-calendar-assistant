@@ -98,12 +98,26 @@ def extract_time(state: AgentState) -> AgentState:
 
         print("🕓 Adjusted smart time:", ist_time)
         state["time_info"] = ist_time
+
+        # ✅ Reconfirm intent just in case
+        if not state.get("intent"):
+            state["intent"] = "check"
+
     else:
-        state["time_info"] = now.replace(tzinfo=None) + timedelta(days=1)
+        print("⚠️ Could not extract datetime from user input.")
+        state["time_info"] = None
+        state["intent"] = "unknown"
+        state["reply"] = "😕 I couldn't understand the time in your message. Try saying something like 'tomorrow at 3 PM'."
 
     return state
 
+
 def check_slot(state: AgentState) -> AgentState:
+    if not state["time_info"]:
+        print("⚠️ Missing time_info. Skipping check.")
+        state["reply"] = "❗ I couldn't understand the time. Please rephrase your query."
+        return state
+
     start = state["time_info"]
     end = start + timedelta(minutes=30)
 
@@ -116,6 +130,7 @@ def check_slot(state: AgentState) -> AgentState:
         state["confirmed"] = True
         state["reply"] = f"✅ You're free at {start.strftime('%I:%M %p on %A')}!"
     return state
+
 
 def book_slot(state: AgentState) -> AgentState:
     if state["confirmed"]:
@@ -157,7 +172,8 @@ builder.add_edge("ExtractTime", "CheckSlot")
 
 builder.add_conditional_edges("CheckSlot", {
     "book": RunnableLambda(book_slot),
-    "check": RunnableLambda(lambda s: s)  
+    "check": RunnableLambda(lambda s: s),
+    "unknown": RunnableLambda(handle_unknown),
 })
 
 builder.add_edge("BookSlot", END)
