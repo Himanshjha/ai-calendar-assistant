@@ -74,42 +74,46 @@ def extract_time(state: AgentState) -> AgentState:
     local_tz = timezone("Asia/Kolkata")
     now = datetime.now(local_tz)
 
-    results = search_dates(
-        state["user_input"],
-        settings={
-            'PREFER_DATES_FROM': 'future',
-            'RELATIVE_BASE': now,
-            'TIMEZONE': 'Asia/Kolkata',
-            'RETURN_AS_TIMEZONE_AWARE': True
-        }
-    )
+    try:
+        results = search_dates(
+            state["user_input"],
+            settings={
+                'PREFER_DATES_FROM': 'future',
+                'RELATIVE_BASE': now,
+                'TIMEZONE': 'Asia/Kolkata',
+                'RETURN_AS_TIMEZONE_AWARE': True
+            }
+        )
+        print("🧪 search_dates result:", results)
 
-    if results:
-        parsed = results[0][1]
-        ist_time = parsed.astimezone(local_tz).replace(tzinfo=None)
+        if results:
+            parsed = results[0][1]
+            ist_time = parsed.astimezone(local_tz).replace(tzinfo=None)
 
-        text = results[0][0].lower()
-        if "afternoon" in text and ist_time.hour < 12:
-            ist_time = ist_time.replace(hour=15, minute=0)
-        elif "evening" in text and ist_time.hour < 17:
-            ist_time = ist_time.replace(hour=18, minute=0)
-        elif "morning" in text and ist_time.hour < 8:
-            ist_time = ist_time.replace(hour=10, minute=0)
+            text = results[0][0].lower()
+            if "afternoon" in text and ist_time.hour < 12:
+                ist_time = ist_time.replace(hour=15, minute=0)
+            elif "evening" in text and ist_time.hour < 17:
+                ist_time = ist_time.replace(hour=18, minute=0)
+            elif "morning" in text and ist_time.hour < 8:
+                ist_time = ist_time.replace(hour=10, minute=0)
 
-        print("🕓 Adjusted smart time:", ist_time)
-        state["time_info"] = ist_time
+            print("🕓 Adjusted smart time:", ist_time)
+            state["time_info"] = ist_time
+        else:
+            # ❗Fallback: tomorrow 3PM
+            fallback_time = (now + timedelta(days=1)).replace(hour=15, minute=0, second=0, microsecond=0)
+            print("⚠️ Could not parse time. Using fallback:", fallback_time)
+            state["time_info"] = fallback_time
 
-        # ✅ Reconfirm intent just in case
-        if not state.get("intent"):
-            state["intent"] = "check"
-
-    else:
-        print("⚠️ Could not extract datetime from user input.")
-        state["time_info"] = None
+    except Exception as e:
+        print("❌ Time parsing failed:", e)
+        state["reply"] = "😕 Sorry, I couldn't understand the time in your message."
         state["intent"] = "unknown"
-        state["reply"] = "😕 I couldn't understand the time in your message. Try saying something like 'tomorrow at 3 PM'."
+        return state
 
     return state
+
 
 
 def check_slot(state: AgentState) -> AgentState:
