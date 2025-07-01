@@ -37,7 +37,8 @@ def detect_intent(state: AgentState) -> AgentState:
         print("🙋 Detected Greeting Only — Marked as unknown")
         return state
 
-    if len(user_msg.split()) <= 3 and not any(word in user_msg for word in ["book", "free", "available", "schedule", "meeting", "call"]):
+    if len(user_msg.split()) <= 3 and not any(word in user_msg for word in 
+           ["book", "free", "available", "schedule", "meeting", "call"]):
         state["intent"] = "unknown"
         print("⚠️ Too short or unclear message — Marked as unknown")
         return state
@@ -73,7 +74,6 @@ def detect_intent(state: AgentState) -> AgentState:
 def extract_time(state: AgentState) -> AgentState:
     local_tz = timezone("Asia/Kolkata")
     now = datetime.now(local_tz)
-
     try:
         results = search_dates(
             state["user_input"],
@@ -99,8 +99,9 @@ def extract_time(state: AgentState) -> AgentState:
                 ist_time = ist_time.replace(hour=10, minute=0)
 
             print("🕓 Adjusted smart time:", ist_time)
-            state["time_info"] = ist_time
+            state.update({"time_info": ist_time})
         else:
+            # ❗Fallback: tomorrow 3PM
             fallback_time = (now + timedelta(days=1)).replace(hour=15, minute=0, second=0, microsecond=0)
             print("⚠️ Could not parse time. Using fallback:", fallback_time)
             state["time_info"] = fallback_time
@@ -123,7 +124,6 @@ def check_slot(state: AgentState) -> str:
     end = start + timedelta(minutes=30)
 
     events = check_availability(start, end)
-
     if events:
         state["confirmed"] = False
         state["reply"] = f"❌ You're busy at {start.strftime('%I:%M %p on %A')}."
@@ -149,18 +149,18 @@ def handle_unknown(state: AgentState) -> AgentState:
 # Build the state graph
 builder = StateGraph(AgentState)
 
-# Entry
-builder.set_entry_point("DetectIntent")
-
-# Nodes
+# IMPORTANT: First add all nodes
 builder.add_node("DetectIntent", RunnableLambda(detect_intent))
 builder.add_node("ExtractTime", RunnableLambda(extract_time))
-builder.add_node("CheckSlotBranch", RunnableLambda(check_slot))
+builder.add_node("CheckSlot", RunnableLambda(check_slot))
 builder.add_node("BookSlot", RunnableLambda(book_slot))
 builder.add_node("HandleUnknown", RunnableLambda(handle_unknown))
 builder.add_node("QuotaError", RunnableLambda(lambda s: s))
 
-# Intent-based flow
+# Now set the entry point (after all nodes are added)
+builder.set_entry_point("DetectIntent")
+
+# Add Intent-based branching from DetectIntent
 builder.add_conditional_edges("DetectIntent", {
     "book": RunnableLambda(extract_time),
     "check": RunnableLambda(extract_time),
@@ -168,24 +168,23 @@ builder.add_conditional_edges("DetectIntent", {
     "quota_error": RunnableLambda(lambda s: s),
 })
 
-# From ExtractTime → Branching CheckSlot logic
-builder.add_edge("ExtractTime", "CheckSlotBranch")
+# Shared time extraction edge
+builder.add_edge("ExtractTime", "CheckSlot")
 
-# Branching after check_slot()
-builder.add_conditional_edges("CheckSlotBranch", {
+# Conditional branching from CheckSlot
+builder.add_conditional_edges("CheckSlot", {
     "book": RunnableLambda(book_slot),
     "check": RunnableLambda(lambda s: s),
     "unknown": RunnableLambda(handle_unknown),
 })
 
-
-# End nodes
+# Add edges to terminate branches
 builder.add_edge("BookSlot", END)
 builder.add_edge("HandleUnknown", END)
 builder.add_edge("QuotaError", END)
-builder.add_edge("CheckSlot", END)
+builder.add_edge("CheckSlot", END)  # ensure CheckSlot ends the flow
 
-# Compile graph
+# Compile the state graph
 graph = builder.compile()
 
 def run_agent(user_input: str):
@@ -198,7 +197,7 @@ def run_agent(user_input: str):
     }
     result = graph.invoke(state)
     print("🟢 Final Agent State:", result)
-
+    # Handle missing reply safely
     if not result["reply"]:
         if result.get("intent") == "check" and result.get("confirmed") is not None:
             if result["confirmed"]:
@@ -207,5 +206,4 @@ def run_agent(user_input: str):
                 result["reply"] = f"❌ You're busy at {result['time_info'].strftime('%I:%M %p on %A')}."
         else:
             result["reply"] = "⚠️ No response generated. Please try again."
-
     return result["reply"]
