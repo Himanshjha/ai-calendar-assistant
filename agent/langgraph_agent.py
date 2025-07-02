@@ -101,11 +101,13 @@ def extract_time(state: AgentState) -> AgentState:
 
 def check_slot(state: AgentState) -> str:
     if not state["time_info"]:
+        print("⚠️ Missing time_info. Skipping check.")
         state["reply"] = "❗ I couldn't understand the time. Please rephrase your query."
         return "unknown"
 
     start = state["time_info"]
     end = start + timedelta(minutes=30)
+
     events = check_availability(start, end)
 
     if events:
@@ -115,7 +117,7 @@ def check_slot(state: AgentState) -> str:
         state["confirmed"] = True
         state["reply"] = f"✅ You're free at {start.strftime('%I:%M %p on %A')}!"
 
-    return state["intent"] or "check"  # ✅ Return the string intent
+    return "check"
 
 
 def book_slot(state: AgentState) -> AgentState:
@@ -160,7 +162,6 @@ builder.add_conditional_edges("CheckSlot", {
 builder.add_edge("BookSlot", END)
 builder.add_edge("HandleUnknown", END)
 builder.add_edge("QuotaError", END)
-builder.add_edge("CheckSlot", END)
 
 graph = builder.compile()
 
