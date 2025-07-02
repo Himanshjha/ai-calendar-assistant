@@ -26,18 +26,18 @@ class AgentState(TypedDict):
     confirmed: Optional[bool]
     reply: Optional[str]
 
-def detect_intent(state: AgentState) -> AgentState:
+def detect_intent(state: AgentState) -> str:
     user_msg = state["user_input"].strip().lower()
     greetings = ['hi', 'hello', 'hey', 'hii', 'good morning', 'good evening']
 
     if user_msg in greetings:
         state["intent"] = "unknown"
-        return state
+        return "unknown"
 
     if len(user_msg.split()) <= 3 and not any(word in user_msg for word in 
            ["book", "free", "available", "schedule", "meeting", "call"]):
         state["intent"] = "unknown"
-        return state
+        return "unknown"
 
     prompt = (
         f"The user said: '{state['user_input']}'. "
@@ -50,17 +50,20 @@ def detect_intent(state: AgentState) -> AgentState:
     try:
         result = llm.invoke([HumanMessage(content=prompt)]).content.lower()
         if "book" in result:
-            state["intent"] = "book"
+            intent = "book"
         elif "check" in result or "free" in result or "available" in result:
-            state["intent"] = "check"
+            intent = "check"
         else:
-            state["intent"] = "unknown"
-        return state
+            intent = "unknown"
 
+        state["intent"] = intent
+        print("🔍 Detected Intent:", intent)
+        return intent  # ✅ Final fix
     except Exception as e:
         state["intent"] = "quota_error"
         state["reply"] = "😵 Gemini quota exceeded. Please try again later."
-        return state
+        return "quota_error"
+
 
 def extract_time(state: AgentState) -> AgentState:
     local_tz = timezone("Asia/Kolkata")
@@ -117,7 +120,7 @@ def check_slot(state: AgentState) -> str:
         state["confirmed"] = True
         state["reply"] = f"✅ You're free at {start.strftime('%I:%M %p on %A')}!"
 
-    return "check"
+    return state["intent"]
 
 
 def book_slot(state: AgentState) -> AgentState:
