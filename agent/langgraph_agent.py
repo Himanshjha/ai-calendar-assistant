@@ -155,9 +155,10 @@ builder.add_edge("ExtractTime", "CheckSlot")
 
 builder.add_conditional_edges("CheckSlot", {
     "book": RunnableLambda(book_slot),
-    "check": RunnableLambda(lambda s: s),
+    "check": END,  # ✅ End the flow properly for 'check'
     "unknown": RunnableLambda(handle_unknown),
 })
+
 
 builder.add_edge("BookSlot", END)
 builder.add_edge("HandleUnknown", END)
