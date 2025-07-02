@@ -26,18 +26,18 @@ class AgentState(TypedDict):
     confirmed: Optional[bool]
     reply: Optional[str]
 
-def detect_intent(state: AgentState) -> str:
+def detect_intent(state: AgentState) -> AgentState:
     user_msg = state["user_input"].strip().lower()
     greetings = ['hi', 'hello', 'hey', 'hii', 'good morning', 'good evening']
 
     if user_msg in greetings:
         state["intent"] = "unknown"
-        return "unknown"
+        return state
 
     if len(user_msg.split()) <= 3 and not any(word in user_msg for word in 
            ["book", "free", "available", "schedule", "meeting", "call"]):
         state["intent"] = "unknown"
-        return "unknown"
+        return state
 
     prompt = (
         f"The user said: '{state['user_input']}'. "
@@ -50,19 +50,19 @@ def detect_intent(state: AgentState) -> str:
     try:
         result = llm.invoke([HumanMessage(content=prompt)]).content.lower()
         if "book" in result:
-            intent = "book"
+            state["intent"] = "book"
         elif "check" in result or "free" in result or "available" in result:
-            intent = "check"
+            state["intent"] = "check"
         else:
-            intent = "unknown"
+            state["intent"] = "unknown"
 
-        state["intent"] = intent
-        print("🔍 Detected Intent:", intent)
-        return intent  # ✅ Final fix
+        print("🔍 Detected Intent:", state["intent"])
+        return state
+
     except Exception as e:
         state["intent"] = "quota_error"
         state["reply"] = "😵 Gemini quota exceeded. Please try again later."
-        return "quota_error"
+        return state
 
 
 def extract_time(state: AgentState) -> AgentState:
@@ -102,7 +102,7 @@ def extract_time(state: AgentState) -> AgentState:
 
     return state
 
-def check_slot(state: AgentState) -> str:
+def check_slot(state: AgentState) -> AgentState:
     if not state["time_info"]:
         print("⚠️ Missing time_info. Skipping check.")
         state["reply"] = "❗ I couldn't understand the time. Please rephrase your query."
@@ -120,7 +120,7 @@ def check_slot(state: AgentState) -> str:
         state["confirmed"] = True
         state["reply"] = f"✅ You're free at {start.strftime('%I:%M %p on %A')}!"
 
-    return state["intent"]
+    return state
 
 
 def book_slot(state: AgentState) -> AgentState:
