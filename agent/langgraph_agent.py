@@ -99,22 +99,24 @@ def extract_time(state: AgentState) -> AgentState:
 
     return state
 
-def check_slot(state: AgentState) -> AgentState:  # ✅ FIXED return type
+def check_slot(state: AgentState) -> str:
     if not state["time_info"]:
         state["reply"] = "❗ I couldn't understand the time. Please rephrase your query."
-        return state  # ✅ return state, not a string
+        return "unknown"
 
     start = state["time_info"]
     end = start + timedelta(minutes=30)
-
     events = check_availability(start, end)
+
     if events:
         state["confirmed"] = False
         state["reply"] = f"❌ You're busy at {start.strftime('%I:%M %p on %A')}."
     else:
         state["confirmed"] = True
         state["reply"] = f"✅ You're free at {start.strftime('%I:%M %p on %A')}!"
-    return state  # ✅
+
+    return state["intent"] or "check"  # ✅ Return the string intent
+
 
 def book_slot(state: AgentState) -> AgentState:
     if state["confirmed"]:
