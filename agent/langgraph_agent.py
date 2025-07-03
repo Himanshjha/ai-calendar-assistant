@@ -180,12 +180,15 @@ def run_agent(user_input: str):
     }
     result = graph.invoke(state)
 
-    if not result["reply"]:
-        if result.get("intent") == "check" and result.get("confirmed") is not None:
-            if result["confirmed"]:
-                result["reply"] = f"✅ You're free at {result['time_info'].strftime('%I:%M %p on %A')}!"
-            else:
-                result["reply"] = f"❌ You're busy at {result['time_info'].strftime('%I:%M %p on %A')}."
+    # Ensure correct response if intent was handled but reply was overwritten prematurely
+if not result["reply"] or "Sorry, I didn't understand" in result["reply"]:
+    if result.get("intent") == "check" and result.get("confirmed") is not None:
+        if result["confirmed"]:
+            result["reply"] = f"✅ You're free at {result['time_info'].strftime('%I:%M %p on %A')}!"
         else:
-            result["reply"] = "⚠️ No response generated. Please try again."
-    return result["reply"]
+            result["reply"] = f"❌ You're busy at {result['time_info'].strftime('%I:%M %p on %A')}."
+    elif result.get("intent") == "book" and result.get("confirmed"):
+        result["reply"] = f"✅ You're free at {result['time_info'].strftime('%I:%M %p on %A')}! 📅 Event booked."
+    else:
+        result["reply"] = "⚠️ No response generated. Please try again."
+
