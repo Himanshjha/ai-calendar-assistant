@@ -170,7 +170,7 @@ builder.add_edge("QuotaError", END)
 
 graph = builder.compile()
 
-ddef run_agent(user_input: str):
+def run_agent(user_input: str):
     state = {
         "user_input": user_input,
         "intent": None,
