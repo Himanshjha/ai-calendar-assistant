@@ -120,7 +120,7 @@ def check_slot(state: AgentState) -> str:
         state["confirmed"] = True
         state["reply"] = f"✅ You're free at {start.strftime('%I:%M %p on %A')}!"
 
-    return state["intent"]  # ✅ this ensures conditional edges know where to go next
+    return state["intent"]  # <- return node name!
 
 
 
