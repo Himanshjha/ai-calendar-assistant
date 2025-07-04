@@ -180,15 +180,21 @@ def run_agent(user_input: str):
     }
     result = graph.invoke(state)
 
-    # ✅ Final fix for misleading or missing reply
-    if not result["reply"] or "Sorry, I didn't understand" in result["reply"]:
-        if result.get("intent") == "check" and result.get("confirmed") is not None:
-            if result["confirmed"]:
-                result["reply"] = f"✅ You're free at {result['time_info'].strftime('%I:%M %p on %A')}!"
-            else:
-                result["reply"] = f"❌ You're busy at {result['time_info'].strftime('%I:%M %p on %A')}."
-        elif result.get("intent") == "book" and result.get("confirmed"):
-            result["reply"] = f"✅ You're free at {result['time_info'].strftime('%I:%M %p on %A')}! 📅 Event booked."
+    if not result["reply"]:
+        result["reply"] = "⚠️ No response generated. Please try again."
+
+    # Final fallback only if it actually failed
+    elif "Sorry, I didn't understand" in result["reply"]:
+        if result.get("intent") in ["check", "book"] and result.get("time_info"):
+            if result.get("confirmed") is not None:
+                if result["confirmed"]:
+                    result["reply"] = f"✅ You're free at {result['time_info'].strftime('%I:%M %p on %A')}!"
+                    if result["intent"] == "book":
+                        end = result["time_info"] + timedelta(minutes=30)
+                        link = book_event("Booked via AI", result["time_info"], end)
+                        result["reply"] += f" 📅 Event booked! 👉 {link}"
+                else:
+                    result["reply"] = f"❌ You're busy at {result['time_info'].strftime('%I:%M %p on %A')}."
         else:
             result["reply"] = "⚠️ No response generated. Please try again."
 
