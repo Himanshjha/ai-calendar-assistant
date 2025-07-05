@@ -26,18 +26,16 @@ class AgentState(TypedDict):
     confirmed: Optional[bool]
     reply: Optional[str]
 
-def detect_intent(state: AgentState) -> AgentState:
+# ---------------------------
+# Step 1: Detect Intent
+# ---------------------------
+def detect_intent(state: AgentState) -> str:
     user_msg = state["user_input"].strip().lower()
     greetings = ['hi', 'hello', 'hey', 'hii', 'good morning', 'good evening']
 
-    if user_msg in greetings:
+    if user_msg in greetings or len(user_msg.split()) <= 3 and not any(word in user_msg for word in ["book", "free", "available", "schedule", "meeting", "call"]):
         state["intent"] = "unknown"
-        return state
-
-    if len(user_msg.split()) <= 3 and not any(word in user_msg for word in 
-           ["book", "free", "available", "schedule", "meeting", "call"]):
-        state["intent"] = "unknown"
-        return state
+        return "unknown"
 
     prompt = (
         f"The user said: '{state['user_input']}'. "
@@ -55,16 +53,16 @@ def detect_intent(state: AgentState) -> AgentState:
             state["intent"] = "check"
         else:
             state["intent"] = "unknown"
-
         print("🔍 Detected Intent:", state["intent"])
-        return state
-
-    except Exception as e:
+        return state["intent"]
+    except Exception:
         state["intent"] = "quota_error"
         state["reply"] = "😵 Gemini quota exceeded. Please try again later."
-        return state
+        return "quota_error"
 
-
+# ---------------------------
+# Step 2: Extract Time
+# ---------------------------
 def extract_time(state: AgentState) -> AgentState:
     local_tz = timezone("Asia/Kolkata")
     now = datetime.now(local_tz)
@@ -95,23 +93,30 @@ def extract_time(state: AgentState) -> AgentState:
             fallback_time = (now + timedelta(days=1)).replace(hour=15, minute=0, second=0, microsecond=0)
             state["time_info"] = fallback_time
 
-    except Exception as e:
+    except Exception:
         state["reply"] = "😕 Sorry, I couldn't understand the time in your message."
         state["intent"] = "unknown"
         return state
 
     return state
 
+# ---------------------------
+# Step 3: Check Availability
+# ---------------------------
 def check_slot(state: AgentState) -> str:
     if not state["time_info"]:
-        print("⚠️ Missing time_info. Skipping check.")
         state["reply"] = "❗ I couldn't understand the time. Please rephrase your query."
         return "unknown"
 
     start = state["time_info"]
     end = start + timedelta(minutes=30)
 
-    events = check_availability(start, end)
+    try:
+        events = check_availability(start, end)
+    except Exception as e:
+        print("❌ Error in check_availability:", str(e))
+        state["reply"] = "🚫 Failed to check availability due to calendar error."
+        return "unknown"
 
     if events:
         state["confirmed"] = False
@@ -120,23 +125,32 @@ def check_slot(state: AgentState) -> str:
         state["confirmed"] = True
         state["reply"] = f"✅ You're free at {start.strftime('%I:%M %p on %A')}!"
 
-    return state["intent"]  # <- return node name!
+    return state["intent"]
 
-
-
+# ---------------------------
+# Step 4: Book Event
+# ---------------------------
 def book_slot(state: AgentState) -> AgentState:
-    if state["confirmed"]:
-        end = state["time_info"] + timedelta(minutes=30)
-        link = book_event("Booked via AI", state["time_info"], end)
-        state["reply"] += f" 📅 Event booked! 👉 {link}"
+    if state.get("confirmed"):
+        try:
+            end = state["time_info"] + timedelta(minutes=30)
+            link = book_event("Booked via AI", state["time_info"], end)
+            state["reply"] += f" 📅 Event booked! 👉 {link}"
+        except Exception as e:
+            state["reply"] += f" 🚫 Booking failed: {e}"
     return state
 
+# ---------------------------
+# Step 5: Handle Unknown
+# ---------------------------
 def handle_unknown(state: AgentState) -> AgentState:
     if not state.get("reply"):
         state["reply"] = "❓ Sorry, I didn't understand. Try asking to *book* or *check* availability."
     return state
 
-# Graph construction
+# ---------------------------
+# LangGraph Workflow
+# ---------------------------
 builder = StateGraph(AgentState)
 
 builder.add_node("DetectIntent", RunnableLambda(detect_intent))
@@ -159,17 +173,19 @@ builder.add_edge("ExtractTime", "CheckSlot")
 
 builder.add_conditional_edges("CheckSlot", {
     "book": RunnableLambda(book_slot),
-    "check": RunnableLambda(lambda s: s),
+    "check": END,
     "unknown": RunnableLambda(handle_unknown),
 })
 
-builder.add_edge("CheckSlot", END)
 builder.add_edge("BookSlot", END)
 builder.add_edge("HandleUnknown", END)
 builder.add_edge("QuotaError", END)
 
 graph = builder.compile()
 
+# ---------------------------
+# Final Agent Runner
+# ---------------------------
 def run_agent(user_input: str):
     state = {
         "user_input": user_input,
@@ -180,22 +196,8 @@ def run_agent(user_input: str):
     }
     result = graph.invoke(state)
 
-    if not result["reply"]:
+    if not result.get("reply"):
+        print("⚠️ No reply returned from graph:", result)
         result["reply"] = "⚠️ No response generated. Please try again."
-
-    # Final fallback only if it actually failed
-    elif "Sorry, I didn't understand" in result["reply"]:
-        if result.get("intent") in ["check", "book"] and result.get("time_info"):
-            if result.get("confirmed") is not None:
-                if result["confirmed"]:
-                    result["reply"] = f"✅ You're free at {result['time_info'].strftime('%I:%M %p on %A')}!"
-                    if result["intent"] == "book":
-                        end = result["time_info"] + timedelta(minutes=30)
-                        link = book_event("Booked via AI", result["time_info"], end)
-                        result["reply"] += f" 📅 Event booked! 👉 {link}"
-                else:
-                    result["reply"] = f"❌ You're busy at {result['time_info'].strftime('%I:%M %p on %A')}."
-        else:
-            result["reply"] = "⚠️ No response generated. Please try again."
 
     return result["reply"]
