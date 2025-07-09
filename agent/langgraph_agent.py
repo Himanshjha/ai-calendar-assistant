@@ -103,20 +103,17 @@ def extract_time(state: AgentState) -> AgentState:
 # ---------------------------
 # Step 3: Check Availability
 # ---------------------------
-def check_slot(state: AgentState) -> str:
+def check_slot(state: AgentState) -> AgentState:
     if not state["time_info"]:
+        print("⚠️ Missing time_info. Skipping check.")
         state["reply"] = "❗ I couldn't understand the time. Please rephrase your query."
-        return "unknown"
+        state["intent"] = "unknown"
+        return state
 
     start = state["time_info"]
     end = start + timedelta(minutes=30)
 
-    try:
-        events = check_availability(start, end)
-    except Exception as e:
-        print("❌ Error in check_availability:", str(e))
-        state["reply"] = "🚫 Failed to check availability due to calendar error."
-        return "unknown"
+    events = check_availability(start, end)
 
     if events:
         state["confirmed"] = False
@@ -125,7 +122,8 @@ def check_slot(state: AgentState) -> str:
         state["confirmed"] = True
         state["reply"] = f"✅ You're free at {start.strftime('%I:%M %p on %A')}!"
 
-    return state["intent"]
+    return state
+
 
 # ---------------------------
 # Step 4: Book Event
